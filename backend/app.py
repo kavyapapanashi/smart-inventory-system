@@ -158,9 +158,11 @@ def create_app() -> Flask:
 
 # ── Entry Point ───────────────────────────────────────────────────────────────
 
+# Globally expose the app instance for Gunicorn and production WSGI servers
+app = create_app()
+
 if __name__ == "__main__":
-    flask_app = create_app()
-    flask_app.run(
+    app.run(
         host="0.0.0.0",
         port=Config.PORT,
         debug=Config.DEBUG,
