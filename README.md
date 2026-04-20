@@ -6,6 +6,14 @@ Welcome to the Stockline Inventory System.
 This project has been upgraded from a static HTML prototype to a full **Next.js React Application** with a **Python Flask Backend**. 
 Please **do not** open the `.html` files in the `frontend` folder directly in your browser. You must start the Next.js development server to view the new Aurora Dark Theme design and full functionality.
 
+## Prerequisites
+Make sure you have the following installed on your machine before running:
+- **Node.js** (v18+)
+- **Python** (v3.8+)
+- **MongoDB** (must be installed and running locally on port 27017)
+
+*Note: The environment `.env` files have been safely included in this repository so everything works instantly without extra configuration.*
+
 ## How to Run the Application
 
 This project requires two terminals to run simultaneously: one for the Next.js frontend and one for the Python backend.
