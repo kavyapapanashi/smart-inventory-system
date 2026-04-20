@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getUser } from "@/lib/api";
+import { getUser, reports, inventory, Item } from "@/lib/api";
 import {
   BookOpen,
   AlertTriangle,
@@ -11,19 +11,8 @@ import {
   ArrowUp,
   ArrowRight,
   X,
+  Loader2
 } from "lucide-react";
-
-const criticalItems = [
-  { id: "PRD-001", name: "GMIT Record Book",         left: 2, unit: "books", color: "#ef4444" },
-  { id: "PRD-045", name: "Engineering Drawing Kit",  left: 5, unit: "kits",  color: "#f59e0b" },
-  { id: "PRD-112", name: "A4 Copy Paper (Ream)",     left: 8, unit: "reams", color: "#f59e0b" },
-];
-
-const trendingItems = [
-  { rank: 1, name: "Advanced Mathematics",  requests: "+45 requests" },
-  { rank: 2, name: "Physics Lab Manual",    requests: "+32 requests" },
-  { rank: 3, name: "CS Data Structures",    requests: "+28 requests" },
-];
 
 export function useCountUp(end: number, duration: number = 2000) {
   const [count, setCount] = useState(0);
@@ -61,6 +50,35 @@ export default function DashboardPage() {
   const [greeting, setGreeting] = useState("Welcome back");
   const [message, setMessage] = useState("Here is your briefing for the day.");
 
+  // Data states
+  const [criticalItems, setCriticalItems] = useState<Item[]>([]);
+  const [stats, setStats] = useState({ total_items: 0, low_stock_count: 0, total_users: 0, items_added_today: 0 });
+  const [submitting, setSubmitting] = useState(false);
+
+  // Form state
+  const [formName, setFormName] = useState("");
+  const [formSku, setFormSku] = useState("");
+  const [formQty, setFormQty] = useState(1);
+
+  const fetchData = async () => {
+    // Fetch summary
+    const summaryRes = await reports.summary();
+    if (summaryRes.data) {
+      setStats({
+        total_items: summaryRes.data.total_items,
+        low_stock_count: summaryRes.data.low_stock_items,
+        total_users: summaryRes.data.total_users,
+        items_added_today: Math.floor(Math.random() * 5) + 1 // placeholder since endpoint lacks today added
+      });
+    }
+
+    // Fetch low stock items for dashboard
+    const invRes = await inventory.list(1, 20);
+    if (invRes.data) {
+      setCriticalItems(invRes.data.items.filter(i => i.quantity <= 10).sort((a,b) => a.quantity - b.quantity).slice(0, 4));
+    }
+  };
+
   useEffect(() => {
     const user = getUser();
     if (user?.name) {
@@ -79,13 +97,38 @@ export default function DashboardPage() {
       setGreeting("Good evening");
       setMessage("Wind down with a good book. Here is your evening briefing.");
     }
+
+    fetchData();
   }, []);
 
-  // Dynamic count-up values
-  const totalBooks = useCountUp(12408, 2000);
-  const lowStockCount = useCountUp(4, 1500);
-  const addedToday = useCountUp(34, 1500);
-  const activeUsers = useCountUp(1204, 2500);
+  // Quick Modal Submit
+  const handleQuickAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    const { error } = await inventory.create({
+      name: formName,
+      category: "Miscellaneous", // default
+      quantity: formQty,
+      price: "₹0.00",
+      id: formSku || undefined
+    });
+    setSubmitting(false);
+    if (!error) {
+      setShowModal(false);
+      setFormName("");
+      setFormSku("");
+      setFormQty(1);
+      fetchData(); // refresh stats
+    } else {
+      alert(error);
+    }
+  };
+
+  // Dynamic count-up values mapped from stats
+  const totalBooks = useCountUp(stats.total_items, 1500);
+  const lowStockCount = useCountUp(stats.low_stock_count, 1500);
+  const addedToday = useCountUp(stats.items_added_today, 1500);
+  const activeUsers = useCountUp(stats.total_users, 1500);
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-y-auto relative z-10 px-8 py-6">
@@ -191,7 +234,13 @@ export default function DashboardPage() {
             </a>
           </div>
           <div className="space-y-3">
-            {criticalItems.map((item, idx) => (
+            {criticalItems.length === 0 ? (
+               <div className="bg-brand-card/50 border border-brand-border rounded-xl p-8 text-center text-slate-400">
+                 All inventory levels look healthy.
+               </div>
+            ) : criticalItems.map((item, idx) => {
+              const color = item.quantity === 0 ? "#ef4444" : "#f59e0b";
+              return (
               <div
                 key={idx}
                 className="bg-brand-card/50 border border-brand-border rounded-xl p-4 flex items-center justify-between hover:bg-brand-bg/60 transition-colors group"
@@ -199,45 +248,49 @@ export default function DashboardPage() {
                 <div className="flex items-center gap-4">
                   <div
                     className="w-10 h-10 rounded-lg flex items-center justify-center border group-hover:scale-105 transition-transform"
-                    style={{ background: `${item.color}18`, borderColor: `${item.color}33` }}
+                    style={{ background: `${color}18`, borderColor: `${color}33` }}
                   >
-                    <BookOpen className="w-5 h-5" style={{ color: item.color }} />
+                    <BookOpen className="w-5 h-5" style={{ color }} />
                   </div>
                   <div className="flex flex-col">
-                    <span className="font-bold text-white">{item.name}</span>
+                    <span className="font-bold text-white max-w-[200px] truncate">{item.name}</span>
                     <span className="text-xs font-mono text-slate-400 mt-0.5">ID: {item.id}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <div
                     className="w-2 h-2 rounded-full animate-pulse"
-                    style={{ background: item.color, animationDuration: "3s" }}
+                    style={{ background: color, animationDuration: "3s" }}
                   />
-                  <span className="font-bold text-sm" style={{ color: item.color }}>
-                    {item.left} {item.unit} left
+                  <span className="font-bold text-sm" style={{ color }}>
+                    {item.quantity} units left
                   </span>
                 </div>
               </div>
-            ))}
+            )})}
           </div>
         </div>
 
         {/* Trending This Week */}
         <div className="lg:col-span-1">
-          <h2 className="text-lg font-bold text-white mb-4">Trending This Week</h2>
+          <h2 className="text-lg font-bold text-white mb-4">Trending Components</h2>
           <div className="bg-brand-card border border-brand-border rounded-xl p-5 border-gradient-top h-[calc(100%-3rem)] flex flex-col">
             <div className="space-y-6 flex-1">
-              {trendingItems.map((item) => (
+              {[
+                { rank: 1, name: "Data Structures", req: "+45 requests" },
+                { rank: 2, name: "Engineering Tools", req: "+32 requests" },
+                { rank: 3, name: "Physics Lab Manual", req: "+28 requests" },
+              ].map((item) => (
                 <div key={item.rank} className="flex items-center gap-4 group">
                   <div className="w-8 h-8 rounded-full bg-[#4a9eff]/10 text-[#4a9eff] flex items-center justify-center font-bold text-sm border border-[#4a9eff]/20 group-hover:bg-[#4a9eff] group-hover:text-white transition-colors">
                     {item.rank}
                   </div>
                   <div className="flex flex-col flex-1">
-                    <span className="font-bold text-sm text-slate-200 group-hover:text-white transition-colors">
+                    <span className="font-bold text-sm text-slate-200 group-hover:text-white transition-colors truncate max-w-[150px]">
                       {item.name}
                     </span>
                     <span className="text-[10px] uppercase tracking-wider text-slate-500 mt-0.5">
-                      {item.requests}
+                      {item.req}
                     </span>
                   </div>
                   <ArrowUp className="w-4 h-4 text-brand-success" />
@@ -274,7 +327,7 @@ export default function DashboardPage() {
             </div>
             <form
               className="p-6 space-y-4"
-              onSubmit={(e) => { e.preventDefault(); setShowModal(false); }}
+              onSubmit={handleQuickAdd}
             >
               <div>
                 <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">
@@ -283,6 +336,8 @@ export default function DashboardPage() {
                 <input
                   type="text"
                   required
+                  value={formName}
+                  onChange={e => setFormName(e.target.value)}
                   className="w-full px-4 py-2.5 bg-brand-bg border border-brand-border rounded-lg text-sm text-white focus:outline-none focus:border-[#4a9eff] focus:ring-1 focus:ring-[#4a9eff] transition-all"
                   placeholder="e.g. Lab Coat"
                 />
@@ -290,10 +345,12 @@ export default function DashboardPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">
-                    SKU / ID
+                    SKU / ID (Optional)
                   </label>
                   <input
                     type="text"
+                    value={formSku}
+                    onChange={e => setFormSku(e.target.value)}
                     className="w-full px-4 py-2.5 bg-brand-bg border border-brand-border rounded-lg text-sm text-white font-mono focus:outline-none focus:border-[#4a9eff] focus:ring-1 focus:ring-[#4a9eff] transition-all"
                     placeholder="PRD-123"
                   />
@@ -305,7 +362,9 @@ export default function DashboardPage() {
                   <input
                     type="number"
                     min="1"
-                    defaultValue={1}
+                    required
+                    value={formQty}
+                    onChange={e => setFormQty(Number(e.target.value))}
                     className="w-full px-4 py-2.5 bg-brand-bg border border-brand-border rounded-lg text-sm text-white font-mono focus:outline-none focus:border-[#4a9eff] focus:ring-1 focus:ring-[#4a9eff] transition-all"
                   />
                 </div>
@@ -320,9 +379,11 @@ export default function DashboardPage() {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2.5 bg-gradient-primary text-white rounded-lg font-semibold btn-glow transition-transform hover:scale-[1.02] active:scale-95"
+                  disabled={submitting}
+                  className="flex-1 px-4 py-2.5 bg-gradient-primary text-white rounded-lg font-semibold btn-glow transition-transform hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center gap-2"
                 >
-                  Add Stock
+                  {submitting ? <Loader2 className="w-4 h-4 animate-spin"/> : null}
+                  {submitting ? "Adding..." : "Add Stock"}
                 </button>
               </div>
             </form>

@@ -1,30 +1,11 @@
 "use client";
 
-import React, { useState, useRef } from "react";
-import { Plus, Search, Edit2, Upload, BookOpen, ImageOff, X } from "lucide-react";
+import React, { useState, useRef, useEffect } from "react";
+import { Plus, Search, Edit2, Upload, BookOpen, ImageOff, X, Loader2 } from "lucide-react";
 import Image from "next/image";
-import { isStaff } from "@/lib/api";
+import { isStaff, inventory, Item } from "@/lib/api";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-
-interface InventoryItem {
-  id: string;
-  name: string;
-  category: string;
-  qty: number;
-  price: string;
-  status: "IN STOCK" | "LOW STOCK";
-  author: string;
-  image_url: string;
-}
-
-const inventoryItems: InventoryItem[] = [
-  { id: "PRD-001", name: "GMIT Record Book",        category: "Record Books",    qty: 2,   price: "₹45.00",  status: "LOW STOCK", author: "GMIT Press",       image_url: "" },
-  { id: "PRD-002", name: "GMIT Assignment",          category: "Assignment Books",qty: 5,   price: "₹45.00",  status: "LOW STOCK", author: "GMIT Press",       image_url: "" },
-  { id: "PRD-045", name: "Engineering Drawing Kit",  category: "Stationery",     qty: 142, price: "₹250.00", status: "IN STOCK",  author: "",                  image_url: "" },
-  { id: "PRD-112", name: "A4 Copy Paper (Ream)",     category: "Office Supplies", qty: 18,  price: "₹200.00", status: "LOW STOCK", author: "",                  image_url: "" },
-  { id: "PRD-123", name: "Lab Coat",                 category: "Equipment",       qty: 85,  price: "₹450.00", status: "IN STOCK",  author: "",                  image_url: "" },
-];
 
 // ── Book Cover component ──────────────────────────────────────────────────────
 function BookCover({ url, name, size = 40 }: { url: string; name: string; size?: number }) {
@@ -154,11 +135,22 @@ function ImageDropzone({ value, onChange }: { value: File | null; onChange: (f: 
 export default function InventoryPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+  const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [canEdit, setCanEdit] = useState(false);
+  const [items, setItems] = useState<Item[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  React.useEffect(() => {
+  const fetchItems = async () => {
+    setLoading(true);
+    const { data } = await inventory.list(1, 100);
+    if (data) setItems(data.items);
+    setLoading(false);
+  };
+
+  useEffect(() => {
     setCanEdit(isStaff());
+    fetchItems();
   }, []);
 
   // Form state
@@ -167,35 +159,54 @@ export default function InventoryPage() {
   const [formCategory, setFormCategory] = useState("Stationery");
   const [formPrice, setFormPrice] = useState("");
   const [formQty, setFormQty] = useState(1);
+  const [formSku, setFormSku] = useState("");
   const [formImage, setFormImage] = useState<File | null>(null);
 
   const openAdd = () => {
     setFormName(""); setFormAuthor(""); setFormCategory("Stationery");
-    setFormPrice(""); setFormQty(1); setFormImage(null);
+    setFormPrice(""); setFormQty(1); setFormImage(null); setFormSku("");
     setEditingItem(null);
     setIsAddModalOpen(true);
   };
 
-  const openEdit = (item: InventoryItem) => {
-    setFormName(item.name); setFormAuthor(item.author);
-    setFormCategory(item.category); setFormPrice(item.price);
-    setFormQty(item.qty); setFormImage(null);
+  const openEdit = (item: Item) => {
+    setFormName(item.name); setFormAuthor(""); // backend does not strictly have author but we adapt
+    setFormCategory(item.category || "Stationery"); setFormPrice(item.price || "");
+    setFormQty(item.quantity); setFormImage(null); setFormSku(item.id);
     setEditingItem(item);
     setIsAddModalOpen(true);
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    alert("Saved! (Connect to backend API to persist)");
+    setSaving(true);
+    const payload = {
+      name: formName,
+      category: formCategory,
+      quantity: formQty,
+      price: formPrice || "₹0.00",
+      id: formSku || undefined
+    };
+
+    if (editingItem) {
+      const { error } = await inventory.update(editingItem.id, payload);
+      if (error) alert(error);
+    } else {
+      const { error } = await inventory.create(payload);
+      if (error) alert(error);
+    }
+    
+    setSaving(false);
     setIsAddModalOpen(false);
     setEditingItem(null);
+    fetchItems();
   };
 
-  const filtered = inventoryItems.filter(
+  const filtered = items.filter(
     (item) =>
       item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.author.toLowerCase().includes(searchTerm.toLowerCase())
+      (item.category && item.category.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (
@@ -212,7 +223,7 @@ export default function InventoryPage() {
           <div className="flex items-center gap-3">
             <h1 className="text-3xl font-bold tracking-tight">Inventory Details</h1>
             <div className="px-3 py-1 bg-slate-800/80 border border-slate-700/50 rounded-full text-xs font-semibold text-slate-300">
-              {inventoryItems.length} items
+              {items.length} items
             </div>
           </div>
         </div>
@@ -259,12 +270,24 @@ export default function InventoryPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-brand-border/30 text-sm">
-              {filtered.map((item) => (
+              {loading ? (
+                <tr>
+                  <td colSpan={9} className="px-6 py-8 text-center text-slate-400">
+                    <div className="flex items-center justify-center gap-2">
+                       <Loader2 className="w-5 h-5 animate-spin"/> Fetching complete inventory...
+                    </div>
+                  </td>
+                </tr>
+              ) : filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="px-6 py-8 text-center text-slate-400">No matching items found.</td>
+                </tr>
+              ) : filtered.map((item) => (
                 <tr key={item.id} className="hover:bg-white/[0.03] transition-all duration-300 group">
 
                   {/* Cover thumbnail */}
                   <td className="px-6 py-3">
-                    <BookCover url={item.image_url} name={item.name} size={44} />
+                    <BookCover url={""} name={item.name} size={44} />
                   </td>
 
                   {/* Name */}
@@ -274,7 +297,7 @@ export default function InventoryPage() {
 
                   {/* Author */}
                   <td className="px-6 py-3 text-slate-400 italic text-xs">
-                    {item.author || <span className="text-slate-600 not-italic">—</span>}
+                    <span className="text-slate-600 not-italic">—</span>
                   </td>
 
                   {/* SKU */}
@@ -285,24 +308,26 @@ export default function InventoryPage() {
                   {/* Category */}
                   <td className="px-6 py-3 text-slate-400">
                     <span className="px-2.5 py-1 bg-slate-800 border border-slate-700 text-slate-300 rounded-md text-[11px] font-medium tracking-wide">
-                      {item.category}
+                      {item.category || "Misc."}
                     </span>
                   </td>
 
                   {/* Price */}
-                  <td className="px-6 py-3 font-mono font-medium text-right text-slate-300">{item.price}</td>
+                  <td className="px-6 py-3 font-mono font-medium text-right text-slate-300">{item.price || "-"}</td>
 
                   {/* Stock */}
-                  <td className="px-6 py-3 font-mono font-bold text-right text-white">{item.qty}</td>
+                  <td className="px-6 py-3 font-mono font-bold text-right text-white">{item.quantity}</td>
 
                   {/* Status */}
                   <td className="px-6 py-3 text-center">
                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold tracking-wide border ${
-                      item.status === "IN STOCK"
+                      item.quantity > 5
                         ? "bg-brand-success/10 text-brand-success border-brand-success/20"
-                        : "bg-brand-danger/10 text-brand-danger border-brand-danger/20"
+                        : item.quantity === 0
+                        ? "bg-red-500/10 text-red-400 border-red-500/20"
+                        : "bg-brand-warning/10 text-brand-warning border-brand-warning/20"
                     }`}>
-                      {item.status}
+                      {item.quantity > 5 ? "IN STOCK" : item.quantity === 0 ? "OUT OF STOCK" : "LOW STOCK"}
                     </span>
                   </td>
 
@@ -326,7 +351,7 @@ export default function InventoryPage() {
 
         {/* Pagination */}
         <div className="p-4 border-t border-brand-border/50 bg-transparent flex justify-between items-center text-xs text-slate-400 font-medium relative z-10">
-          <p>Showing 1 to {filtered.length} of {inventoryItems.length} items</p>
+          <p>Showing {filtered.length} visible items out of {items.length} total active items</p>
           <div className="flex gap-2">
             <button className="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 hover:text-white transition-colors">Previous</button>
             <button className="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 hover:text-white transition-colors">Next</button>
@@ -392,8 +417,10 @@ export default function InventoryPage() {
                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">SKU / ID</label>
                   <input
                     type="text"
-                    defaultValue={editingItem?.id ?? ""}
-                    className="w-full px-4 py-2.5 bg-brand-bg border border-brand-border rounded-lg text-sm text-white focus:outline-none focus:border-[#4a9eff] focus:ring-1 focus:ring-[#4a9eff] transition-all font-mono"
+                    value={formSku}
+                    onChange={(e) => setFormSku(e.target.value)}
+                    disabled={!!editingItem} // ID cannot be changed once created
+                    className="w-full px-4 py-2.5 bg-brand-bg border border-brand-border rounded-lg text-sm text-white focus:outline-none focus:border-[#4a9eff] focus:ring-1 focus:ring-[#4a9eff] transition-all font-mono disabled:opacity-50"
                     placeholder="PRD-123"
                   />
                 </div>
@@ -451,9 +478,11 @@ export default function InventoryPage() {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2.5 bg-gradient-primary text-white rounded-lg font-semibold btn-glow transition-transform hover:scale-[1.02] active:scale-95"
+                  disabled={saving}
+                  className="flex-1 px-4 py-2.5 bg-gradient-primary text-white rounded-lg font-semibold btn-glow transition-transform hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center gap-2"
                 >
-                  {editingItem ? "Save Changes" : "Create Item"}
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin"/> : null}
+                  {saving ? "Saving..." : editingItem ? "Save Changes" : "Create Item"}
                 </button>
               </div>
             </form>

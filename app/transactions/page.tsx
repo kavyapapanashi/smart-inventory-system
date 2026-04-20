@@ -1,19 +1,23 @@
 "use client";
 
-import React, { useState } from "react";
-import { Search, Download, ArrowDownLeft, ArrowUpRight } from "lucide-react";
-
-// Dummy transactions data
-const transactionsList = [
-  { id: "TXN-1042", user: "Alice Walker", item: "GMIT Record Book", type: "ISSUED", date: "Oct 24, 2026", time: "10:30 AM", status: "COMPLETED" },
-  { id: "TXN-1043", user: "John Doe", item: "Engineering Drawing Kit", type: "RETURNED", date: "Oct 24, 2026", time: "11:15 AM", status: "COMPLETED" },
-  { id: "TXN-1044", user: "Sarah Smith", item: "Lab Coat", type: "ISSUED", date: "Oct 24, 2026", time: "01:20 PM", status: "PENDING" },
-  { id: "TXN-1045", user: "Michael Chen", item: "A4 Copy Paper (Ream)", type: "ISSUED", date: "Oct 23, 2026", time: "09:45 AM", status: "COMPLETED" },
-  { id: "TXN-1046", user: "Emma Wilson", item: "GMIT Assignment", type: "RETURNED", date: "Oct 23, 2026", time: "03:10 PM", status: "COMPLETED" },
-];
+import React, { useState, useEffect } from "react";
+import { Search, Download, ArrowDownLeft, ArrowUpRight, Loader2 } from "lucide-react";
+import { transactions, Transaction } from "@/lib/api";
 
 export default function TransactionsPage() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [transactionsList, setTransactionsList] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchTxns = async () => {
+      setLoading(true);
+      const res = await transactions.list(1, 100);
+      if (res.data) setTransactionsList(res.data.transactions);
+      setLoading(false);
+    };
+    fetchTxns();
+  }, []);
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-y-auto relative z-10 px-8 py-6">
@@ -60,45 +64,63 @@ export default function TransactionsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-brand-border/50 text-sm">
-              {transactionsList
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-8 text-center text-slate-400">
+                    <div className="flex items-center justify-center gap-2">
+                       <Loader2 className="w-5 h-5 animate-spin"/> Fetching transaction history...
+                    </div>
+                  </td>
+                </tr>
+              ) : transactionsList.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-8 text-center text-slate-400">No transactions recorded yet.</td>
+                </tr>
+              ) : transactionsList
                 .filter(record => 
-                  record.user.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                  record.item.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  record.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                  record.item_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                   record.id.toLowerCase().includes(searchTerm.toLowerCase())
                 )
-                .map((record) => (
+                .map((record) => {
+                  const rDate = new Date(record.timestamp);
+                  const isIssued = record.type.toLowerCase() === "issued" || record.type.toLowerCase() === "borrow";
+                  return (
                 <tr key={record.id} className="hover:bg-brand-bg/60 transition-colors group">
                   <td className="px-6 py-4 font-mono text-slate-400 group-hover:text-[#4a9eff] transition-colors">{record.id}</td>
                   <td className="px-6 py-4">
-                    {record.type === "ISSUED" ? (
+                    {isIssued ? (
                       <span className="flex items-center gap-2 text-[#4a9eff]">
-                        <ArrowUpRight className="w-4 h-4" /> <span className="font-semibold text-xs tracking-wide">ISSUED</span>
+                        <ArrowUpRight className="w-4 h-4" /> <span className="font-semibold text-xs tracking-wide uppercase">ISSUED</span>
                       </span>
                     ) : (
                       <span className="flex items-center gap-2 text-brand-success">
-                        <ArrowDownLeft className="w-4 h-4" /> <span className="font-semibold text-xs tracking-wide">RETURNED</span>
+                        <ArrowDownLeft className="w-4 h-4" /> <span className="font-semibold text-xs tracking-wide uppercase">RETURNED</span>
                       </span>
                     )}
                   </td>
-                  <td className="px-6 py-4 font-semibold text-slate-200">{record.item}</td>
-                  <td className="px-6 py-4 text-slate-300">{record.user}</td>
+                  <td className="px-6 py-4">
+                    <span className="font-semibold text-slate-200">{record.item_name}</span>
+                    <span className="text-xs text-slate-400 block mt-0.5">Qty: {record.quantity}</span>
+                  </td>
+                  <td className="px-6 py-4 text-slate-300">{record.user_name}</td>
                   <td className="px-6 py-4 text-slate-400">
                     <div className="flex flex-col">
-                      <span className="text-white font-medium">{record.date}</span>
-                      <span className="text-[11px] uppercase tracking-wider">{record.time}</span>
+                      <span className="text-white font-medium">{rDate.toLocaleDateString()}</span>
+                      <span className="text-[11px] uppercase tracking-wider">{rDate.toLocaleTimeString()}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-center">
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold tracking-wide border ${
-                      record.status === 'COMPLETED' 
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold tracking-wide border uppercase ${
+                      record.status === 'completed' || record.status === 'approved'
                         ? 'bg-brand-success/10 text-brand-success border-brand-success/20' 
                         : 'bg-brand-warning/10 text-brand-warning border-brand-warning/20'
                     }`}>
-                      {record.status}
+                      {record.status || "COMPLETED"}
                     </span>
                   </td>
                 </tr>
-              ))}
+              )})}
             </tbody>
           </table>
         </div>
