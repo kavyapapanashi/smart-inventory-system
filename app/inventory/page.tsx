@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Plus, Search, Edit2, Upload, BookOpen, ImageOff, X, Loader2 } from "lucide-react";
+import { Plus, Search, Edit2, Upload, BookOpen, X, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { isStaff, inventory, Item } from "@/lib/api";
 
@@ -153,26 +153,25 @@ export default function InventoryPage() {
     fetchItems();
   }, []);
 
-  // Form state
-  const [formName, setFormName] = useState("");
+  // Form state — maps to the real Item / API fields
+  const [formName, setFormName]   = useState("");
   const [formAuthor, setFormAuthor] = useState("");
-  const [formCategory, setFormCategory] = useState("Stationery");
-  const [formPrice, setFormPrice] = useState("");
-  const [formQty, setFormQty] = useState(1);
-  const [formSku, setFormSku] = useState("");
+  const [formDesc, setFormDesc]   = useState("");  // description field
+  const [formQty, setFormQty]     = useState(1);
   const [formImage, setFormImage] = useState<File | null>(null);
 
   const openAdd = () => {
-    setFormName(""); setFormAuthor(""); setFormCategory("Stationery");
-    setFormPrice(""); setFormQty(1); setFormImage(null); setFormSku("");
+    setFormName(""); setFormAuthor(""); setFormDesc(""); setFormQty(1); setFormImage(null);
     setEditingItem(null);
     setIsAddModalOpen(true);
   };
 
   const openEdit = (item: Item) => {
-    setFormName(item.name); setFormAuthor(""); // backend does not strictly have author but we adapt
-    setFormCategory(item.category || "Stationery"); setFormPrice(item.price || "");
-    setFormQty(item.quantity); setFormImage(null); setFormSku(item.id);
+    setFormName(item.name);
+    setFormAuthor(item.author || "");
+    setFormDesc(item.description || "");
+    setFormQty(item.quantity);
+    setFormImage(null);
     setEditingItem(item);
     setIsAddModalOpen(true);
   };
@@ -180,22 +179,15 @@ export default function InventoryPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    const payload = {
-      name: formName,
-      category: formCategory,
-      quantity: formQty,
-      price: formPrice || "₹0.00",
-      id: formSku || undefined
-    };
 
     if (editingItem) {
-      const { error } = await inventory.update(editingItem.id, payload);
+      const { error } = await inventory.update(editingItem.id, formName, formQty, formDesc, formAuthor, formImage);
       if (error) alert(error);
     } else {
-      const { error } = await inventory.create(payload);
+      const { error } = await inventory.add(formName, formQty, formDesc, formAuthor, formImage);
       if (error) alert(error);
     }
-    
+
     setSaving(false);
     setIsAddModalOpen(false);
     setEditingItem(null);
@@ -206,7 +198,7 @@ export default function InventoryPage() {
     (item) =>
       item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.category && item.category.toLowerCase().includes(searchTerm.toLowerCase()))
+      (item.author && item.author.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (
@@ -256,19 +248,19 @@ export default function InventoryPage() {
 
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-brand-bg/40">
-                <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-widest border-b border-brand-border">Cover</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-widest border-b border-brand-border">Book / Product</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-widest border-b border-brand-border">Author</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-widest border-b border-brand-border">SKU / ID</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-widest border-b border-brand-border">Category</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-widest border-b border-brand-border text-right">Price</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-widest border-b border-brand-border text-right">Stock</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-widest border-b border-brand-border text-center">Status</th>
-                {canEdit && <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-widest border-b border-brand-border text-right">Actions</th>}
-              </tr>
-            </thead>
+              {/* Columns: Cover | Name | Author | ID | Description | Stock | Status | Actions */}
+              <thead>
+                <tr className="bg-brand-bg/40">
+                  <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-widest border-b border-brand-border">Cover</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-widest border-b border-brand-border">Book / Product</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-widest border-b border-brand-border">Author</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-widest border-b border-brand-border">ID</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-widest border-b border-brand-border">Description</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-widest border-b border-brand-border text-right">Stock</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-widest border-b border-brand-border text-center">Status</th>
+                  {canEdit && <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-widest border-b border-brand-border text-right">Actions</th>}
+                </tr>
+              </thead>
             <tbody className="divide-y divide-brand-border/30 text-sm">
               {loading ? (
                 <tr>
@@ -287,7 +279,7 @@ export default function InventoryPage() {
 
                   {/* Cover thumbnail */}
                   <td className="px-6 py-3">
-                    <BookCover url={""} name={item.name} size={44} />
+                    <BookCover url={item.image_url || ""} name={item.name} size={44} />
                   </td>
 
                   {/* Name */}
@@ -297,23 +289,20 @@ export default function InventoryPage() {
 
                   {/* Author */}
                   <td className="px-6 py-3 text-slate-400 italic text-xs">
-                    <span className="text-slate-600 not-italic">—</span>
+                    {item.author || <span className="text-slate-600 not-italic">—</span>}
                   </td>
 
-                  {/* SKU */}
+                  {/* ID */}
                   <td className="px-6 py-3 font-mono text-slate-400 group-hover:text-[#4a9eff] transition-colors">
                     {item.id}
                   </td>
 
-                  {/* Category */}
-                  <td className="px-6 py-3 text-slate-400">
-                    <span className="px-2.5 py-1 bg-slate-800 border border-slate-700 text-slate-300 rounded-md text-[11px] font-medium tracking-wide">
-                      {item.category || "Misc."}
+                  {/* Description */}
+                  <td className="px-6 py-3 text-slate-400 max-w-[150px]">
+                    <span className="px-2.5 py-1 bg-slate-800 border border-slate-700 text-slate-300 rounded-md text-[11px] font-medium tracking-wide line-clamp-1">
+                      {item.description || "—"}
                     </span>
                   </td>
-
-                  {/* Price */}
-                  <td className="px-6 py-3 font-mono font-medium text-right text-slate-300">{item.price || "-"}</td>
 
                   {/* Stock */}
                   <td className="px-6 py-3 font-mono font-bold text-right text-white">{item.quantity}</td>
@@ -411,60 +400,29 @@ export default function InventoryPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                {/* SKU */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">SKU / ID</label>
-                  <input
-                    type="text"
-                    value={formSku}
-                    onChange={(e) => setFormSku(e.target.value)}
-                    disabled={!!editingItem} // ID cannot be changed once created
-                    className="w-full px-4 py-2.5 bg-brand-bg border border-brand-border rounded-lg text-sm text-white focus:outline-none focus:border-[#4a9eff] focus:ring-1 focus:ring-[#4a9eff] transition-all font-mono disabled:opacity-50"
-                    placeholder="PRD-123"
-                  />
-                </div>
+              {/* Description */}
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">Description / Category</label>
+                <input
+                  type="text"
+                  value={formDesc}
+                  onChange={(e) => setFormDesc(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-brand-bg border border-brand-border rounded-lg text-sm text-white focus:outline-none focus:border-[#4a9eff] focus:ring-1 focus:ring-[#4a9eff] transition-all"
+                  placeholder="e.g. Stationery, Books, Equipment..."
+                />
+              </div>
 
-                {/* Category */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">Category</label>
-                  <select
-                    value={formCategory}
-                    onChange={(e) => setFormCategory(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-brand-bg border border-brand-border rounded-lg text-sm text-white focus:outline-none focus:border-[#4a9eff] focus:ring-1 focus:ring-[#4a9eff] transition-all appearance-none cursor-pointer"
-                  >
-                    <option>Stationery</option>
-                    <option>Books</option>
-                    <option>Record Books</option>
-                    <option>Assignment Books</option>
-                    <option>Office Supplies</option>
-                    <option>Equipment</option>
-                  </select>
-                </div>
-
-                {/* Price */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">Price (₹)</label>
-                  <input
-                    type="text"
-                    value={formPrice}
-                    onChange={(e) => setFormPrice(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-brand-bg border border-brand-border rounded-lg text-sm text-white focus:outline-none focus:border-[#4a9eff] focus:ring-1 focus:ring-[#4a9eff] transition-all font-mono"
-                    placeholder="0.00"
-                  />
-                </div>
-
-                {/* Qty */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">Stock Level</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={formQty}
-                    onChange={(e) => setFormQty(Number(e.target.value))}
-                    className="w-full px-4 py-2.5 bg-brand-bg border border-brand-border rounded-lg text-sm text-white focus:outline-none focus:border-[#4a9eff] focus:ring-1 focus:ring-[#4a9eff] transition-all font-mono"
-                  />
-                </div>
+              {/* Stock Level */}
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">Stock Level *</label>
+                <input
+                  type="number"
+                  min={0}
+                  required
+                  value={formQty}
+                  onChange={(e) => setFormQty(Number(e.target.value))}
+                  className="w-full px-4 py-2.5 bg-brand-bg border border-brand-border rounded-lg text-sm text-white focus:outline-none focus:border-[#4a9eff] focus:ring-1 focus:ring-[#4a9eff] transition-all font-mono"
+                />
               </div>
 
               {/* Actions */}

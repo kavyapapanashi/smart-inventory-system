@@ -65,10 +65,10 @@ export default function DashboardPage() {
     const summaryRes = await reports.summary();
     if (summaryRes.data) {
       setStats({
-        total_items: summaryRes.data.total_items,
-        low_stock_count: summaryRes.data.low_stock_items,
-        total_users: summaryRes.data.total_users,
-        items_added_today: Math.floor(Math.random() * 5) + 1 // placeholder since endpoint lacks today added
+        total_items: summaryRes.data.total_items || 0,
+        low_stock_count: summaryRes.data.low_stock || 0,
+        total_users: summaryRes.data.total_users || 0,
+        items_added_today: summaryRes.data.total_transactions || 0,
       });
     }
 
@@ -105,20 +105,14 @@ export default function DashboardPage() {
   const handleQuickAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    const { error } = await inventory.create({
-      name: formName,
-      category: "Miscellaneous", // default
-      quantity: formQty,
-      price: "₹0.00",
-      id: formSku || undefined
-    });
+    const { error } = await inventory.add(formName, formQty, formSku || "", "", null);
     setSubmitting(false);
     if (!error) {
       setShowModal(false);
       setFormName("");
       setFormSku("");
       setFormQty(1);
-      fetchData(); // refresh stats
+      fetchData();
     } else {
       alert(error);
     }
