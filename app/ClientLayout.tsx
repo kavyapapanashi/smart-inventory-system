@@ -164,11 +164,11 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] bg-[#00f2fe]/5 blur-[120px] rounded-full pointer-events-none z-0" />
         <div className="absolute bottom-[-10%] left-[-5%] w-[400px] h-[400px] bg-[#0284c7]/10 blur-[130px] rounded-full pointer-events-none z-0" />
 
-        <div className="relative z-10 w-full flex-none">
+        <div className="relative z-50 w-full flex-none">
           <TopHeader />
         </div>
 
-        <div className="flex-1 overflow-y-auto relative z-10">
+        <div className="flex-1 overflow-y-auto relative z-0">
           {children}
         </div>
       </main>

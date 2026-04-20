@@ -36,13 +36,29 @@
         <div class="row">
             <div class="col-md-6 mb-3">
                 <label class="input-label" for="password">Password</label>
-                <input type="password" class="form-control" id="password" required placeholder="Password">
+                <div class="position-relative">
+                  <input type="password" class="form-control pe-5" id="password" required
+                    placeholder="Max 12 chars"
+                    maxlength="12"
+                    autocomplete="new-password"
+                    oninput="updateStrength(this.value)">
+                  <button type="button" class="btn p-0 position-absolute top-50 translate-middle-y end-0 me-2 text-muted" style="background:none;border:none;" onclick="togglePwd('password',this)" tabindex="-1">👁</button>
+                </div>
+                <div id="strength-bar" class="mt-2" style="height:3px;border-radius:2px;background:#222;"><div id="strength-fill" style="height:100%;width:0;border-radius:2px;transition:width .3s;"></div></div>
+                <small id="strength-text" style="font-size:0.7rem;color:#6b7280;" class="d-block mt-1"></small>
             </div>
             <div class="col-md-6 mb-4">
                 <label class="input-label" for="confirmPassword">Confirm Password</label>
-                <input type="password" class="form-control" id="confirmPassword" required placeholder="Confirm">
+                <div class="position-relative">
+                  <input type="password" class="form-control pe-5" id="confirmPassword" required
+                    placeholder="Repeat password"
+                    maxlength="12"
+                    autocomplete="new-password">
+                  <button type="button" class="btn p-0 position-absolute top-50 translate-middle-y end-0 me-2 text-muted" style="background:none;border:none;" onclick="togglePwd('confirmPassword',this)" tabindex="-1">👁</button>
+                </div>
             </div>
         </div>
+        <p class="text-muted" style="font-size:0.72rem;margin-top:-0.5rem;margin-bottom:1rem;">Password: 8–12 chars, must include uppercase, number &amp; symbol</p>
         
         <button type="submit" class="btn btn-primary-custom w-100 mb-3 gradient-bg" id="registerBtn">Create Account</button>
       </form>
@@ -54,6 +70,42 @@
   </div>
 
   <script src="js/script.js"></script>
+  <script>
+    function togglePwd(id, btn) {
+      const inp = document.getElementById(id);
+      inp.type = inp.type === 'password' ? 'text' : 'password';
+      btn.textContent = inp.type === 'password' ? '👁' : '🙈';
+    }
+    function updateStrength(val) {
+      const fill = document.getElementById('strength-fill');
+      const text = document.getElementById('strength-text');
+      let score = 0;
+      if (val.length >= 8) score++;
+      if (/[A-Z]/.test(val)) score++;
+      if (/[0-9]/.test(val)) score++;
+      if (/[^A-Za-z0-9]/.test(val)) score++;
+      const levels = [
+        { w: '0%',   c: '#ef4444', t: '' },
+        { w: '25%',  c: '#ef4444', t: 'Weak — add uppercase, number or symbol' },
+        { w: '50%',  c: '#f59e0b', t: 'Fair' },
+        { w: '75%',  c: '#3b82f6', t: 'Good' },
+        { w: '100%', c: '#10b981', t: 'Strong ✓' },
+      ];
+      const l = levels[score] || levels[0];
+      fill.style.width = val.length ? l.w : '0%';
+      fill.style.background = l.c;
+      text.textContent = val.length ? l.t : '';
+      text.style.color = l.c;
+    }
+    function validatePassword(val) {
+      if (val.length < 8)  return 'Password must be at least 8 characters';
+      if (val.length > 12) return 'Password must be at most 12 characters';
+      if (!/[A-Z]/.test(val)) return 'Password must contain an uppercase letter';
+      if (!/[0-9]/.test(val)) return 'Password must contain a number';
+      if (!/[^A-Za-z0-9]/.test(val)) return 'Password must contain a symbol (e.g. @, #, !)';
+      return null;
+    }
+  </script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       if (isAuthenticated()) {
@@ -73,6 +125,12 @@
         const role = document.getElementById('role').value;
         const password = document.getElementById('password').value;
         const confirmPassword = document.getElementById('confirmPassword').value;
+
+        const pwdError = validatePassword(password);
+        if (pwdError) {
+            alertContainer.innerHTML = buildAlertUI(pwdError, 'error');
+            return;
+        }
 
         if (password !== confirmPassword) {
             alertContainer.innerHTML = buildAlertUI('Passwords do not match', 'error');

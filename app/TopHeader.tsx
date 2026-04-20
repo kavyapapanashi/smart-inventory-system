@@ -80,7 +80,7 @@ export default function TopHeader() {
           </button>
 
           {showNotifPanel && (
-            <div className="absolute right-0 mt-3 w-80 bg-[#161f33] border border-brand-border rounded-xl shadow-2xl overflow-hidden z-50 flex flex-col origin-top-right animate-in fade-in zoom-in duration-200">
+            <div className="absolute right-0 mt-3 w-80 bg-[#161f33] border border-brand-border rounded-xl shadow-2xl overflow-hidden z-[9999] flex flex-col origin-top-right animate-in fade-in zoom-in duration-200">
               <div className="px-4 py-3 border-b border-brand-border bg-[#0b1121]/50 flex justify-between items-center">
                 <span className="text-sm font-semibold text-white">Notifications</span>
                 <span className="text-xs px-2 py-0.5 rounded-full bg-brand-danger/20 text-brand-danger font-bold">
@@ -109,7 +109,7 @@ export default function TopHeader() {
                   <Link
                     href="/inventory"
                     onClick={() => setShowNotifPanel(false)}
-                    className="text-[11px] font-bold text-[#4a9eff] hover:text-white uppercase tracking-wider"
+                    className="text-[11px] font-bold text-[#4a9eff] hover:text-white uppercase tracking-wider inline-flex items-center gap-1"
                   >
                     Manage Inventory →
                   </Link>
@@ -119,7 +119,7 @@ export default function TopHeader() {
           )}
         </div>
 
-        {/* Profile Dropdown — original small right-side style */}
+        {/* Profile Dropdown */}
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setIsOpen(!isOpen)}
@@ -131,13 +131,13 @@ export default function TopHeader() {
           </button>
 
           {isOpen && (
-            <div className="absolute right-0 top-full mt-2 w-56 bg-[#161f33] border border-brand-border rounded-xl shadow-2xl overflow-hidden z-[999] flex flex-col origin-top-right animate-in fade-in zoom-in-95 duration-150">
-              <div className="px-4 py-3 border-b border-brand-border bg-[#0b1121]/50">
-                <p className="text-sm font-semibold text-white">{userName}</p>
-                <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-brand-success"></span>
-                  {userRole}
-                </p>
+            <div className="absolute right-0 top-full mt-3 w-56 bg-[#161f33] border border-brand-border rounded-xl shadow-2xl overflow-hidden z-[9999] flex flex-col origin-top-right animate-in fade-in zoom-in-95 duration-150">
+              <div className="px-4 py-3 border-b border-brand-border bg-gradient-to-b from-[#161f33] to-[#0b1121]">
+                <p className="text-sm font-semibold text-white truncate">{userName}</p>
+                <div className="inline-flex items-center gap-1 mt-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-brand-success animate-pulse"></span>
+                  <p className="text-xs text-brand-success font-bold uppercase tracking-wider">{userRole}</p>
+                </div>
               </div>
               <div className="py-1">
                 <Link
@@ -145,22 +145,22 @@ export default function TopHeader() {
                   onClick={() => setIsOpen(false)}
                   className="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:text-white hover:bg-[#4a9eff]/10 transition-colors"
                 >
-                  <User className="w-4 h-4" />
+                  <User className="w-4 h-4 text-[#4a9eff]" />
                   My Profile
                 </Link>
                 <button
                   onClick={() => setIsOpen(false)}
                   className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:text-white hover:bg-[#4a9eff]/10 transition-colors"
                 >
-                  <Settings className="w-4 h-4" />
+                  <Settings className="w-4 h-4 text-[#7c3aed]" />
                   Account Settings
                 </button>
               </div>
-              <div className="py-1 border-t border-brand-border">
+              <div className="py-1 border-t border-brand-border bg-black/20">
                 <Link
                   href="/login"
                   onClick={() => { setIsOpen(false); clearSession(); }}
-                  className="flex items-center gap-3 px-4 py-2 text-sm font-medium text-brand-danger hover:bg-brand-danger/10 transition-colors"
+                  className="flex items-center gap-3 px-4 py-2 text-sm font-bold text-brand-danger hover:bg-brand-danger/10 transition-colors"
                 >
                   <LogOut className="w-4 h-4" />
                   Sign Out

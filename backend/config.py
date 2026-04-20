@@ -19,7 +19,9 @@ class Config:
     PORT = int(os.getenv("PORT", "5000"))
 
     # ── CORS ──────────────────────────────────────────────────────────────────
-    CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001").split(",")
+    # Default to '*' (allow all) to prevent Vercel blocking issues during deployment
+    cors_env = os.getenv("CORS_ORIGINS", "*")
+    CORS_ORIGINS = cors_env if cors_env == "*" else cors_env.split(",")
 
     # ── Rate Limiting ─────────────────────────────────────────────────────────
     RATELIMIT_DEFAULT = os.getenv("RATELIMIT_DEFAULT", "100 per minute")

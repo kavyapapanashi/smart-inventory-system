@@ -23,7 +23,16 @@
         </div>
         <div class="mb-4">
           <label class="input-label" for="password">Password</label>
-          <input type="password" class="form-control" id="password" required placeholder="Enter password">
+          <div class="position-relative">
+            <input type="password" class="form-control pe-5" id="password" required
+              placeholder="Enter password"
+              maxlength="12"
+              autocomplete="current-password"
+              oninput="updateStrengthMeter(this.value)">
+            <button type="button" class="btn p-0 position-absolute top-50 translate-middle-y end-0 me-2 text-muted" style="background:none;border:none;" onclick="togglePwd('password',this)" tabindex="-1" aria-label="Show/hide password">👁</button>
+          </div>
+          <div id="strength-bar" class="mt-2" style="height:3px;border-radius:2px;transition:all .3s;background:#222;"><div id="strength-fill" style="height:100%;width:0;border-radius:2px;transition:width .3s;"></div></div>
+          <small id="strength-text" class="text-muted d-block mt-1" style="font-size:0.7rem;"></small>
         </div>
         
         <button type="submit" class="btn btn-primary-custom w-100 mb-3 gradient-bg" id="loginBtn">Sign In</button>
@@ -36,6 +45,34 @@
   </div>
 
   <script src="js/script.js"></script>
+  <script>
+    function togglePwd(id, btn) {
+      const inp = document.getElementById(id);
+      inp.type = inp.type === 'password' ? 'text' : 'password';
+      btn.textContent = inp.type === 'password' ? '👁' : '🙈';
+    }
+    function updateStrengthMeter(val) {
+      const fill = document.getElementById('strength-fill');
+      const text = document.getElementById('strength-text');
+      let score = 0;
+      if (val.length >= 8) score++;
+      if (/[A-Z]/.test(val)) score++;
+      if (/[0-9]/.test(val)) score++;
+      if (/[^A-Za-z0-9]/.test(val)) score++;
+      const levels = [
+        { w: '0%',   c: '#ef4444', t: '' },
+        { w: '25%',  c: '#ef4444', t: 'Weak' },
+        { w: '50%',  c: '#f59e0b', t: 'Fair' },
+        { w: '75%',  c: '#3b82f6', t: 'Good' },
+        { w: '100%', c: '#10b981', t: 'Strong ✓' },
+      ];
+      const l = levels[score] || levels[0];
+      fill.style.width = val.length ? l.w : '0%';
+      fill.style.background = l.c;
+      text.textContent = val.length ? l.t : '';
+      text.style.color = l.c;
+    }
+  </script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       if (isAuthenticated()) {

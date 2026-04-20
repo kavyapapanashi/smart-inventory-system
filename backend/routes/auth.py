@@ -34,8 +34,17 @@ def register():
         return jsonify({"error": "Name is required"}), 400
     if not email:
         return jsonify({"error": "Email is required"}), 400
-    if not password or len(password) < 6:
-        return jsonify({"error": "Password must be at least 6 characters"}), 400
+    if not password or len(password) < 8:
+        return jsonify({"error": "Password must be at least 8 characters"}), 400
+    if len(password) > 12:
+        return jsonify({"error": "Password must be at most 12 characters"}), 400
+    import re
+    if not re.search(r"[A-Z]", password):
+        return jsonify({"error": "Password must contain at least one uppercase letter"}), 400
+    if not re.search(r"[0-9]", password):
+        return jsonify({"error": "Password must contain at least one number"}), 400
+    if not re.search(r"[^A-Za-z0-9]", password):
+        return jsonify({"error": "Password must contain at least one symbol (e.g. @, #, !)"}), 400
     if role not in VALID_ROLES:
         return jsonify({"error": f"Role must be one of: {', '.join(VALID_ROLES)}"}), 400
 

@@ -6,3 +6,4 @@ PyJWT==2.8.0
 python-dotenv==1.0.1
 flask-limiter==3.7.0
 fpdf2==2.7.9
+gunicorn==22.0.0
